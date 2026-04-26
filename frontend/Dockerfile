@@ -9,5 +9,6 @@ COPY . .
 
 EXPOSE 5173
 
-CMD ["npm", "run", "dev"]
+RUN npm run build
 
+CMD ["sh", "-c", "npm run start -- --port ${PORT:-5173}"]
