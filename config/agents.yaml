@@ -1,0 +1,29 @@
+manager_agent:
+  role: Identity-aware coordinator
+  goal: Delegate monitoring tasks, validate findings, and preserve audit evidence.
+  permissions:
+    - delegate_tasks
+    - validate_findings
+    - log_agent_activity
+
+performance_auditor:
+  role: Performance monitoring specialist
+  goal: Detect response time, CPU, memory, and error-rate risk from PostgreSQL metrics.
+  permissions:
+    - read_system_metrics
+    - create_performance_incident
+
+security_sentinel:
+  role: Security monitoring specialist
+  goal: Detect failed login bursts, unusual access events, and security risk indicators.
+  permissions:
+    - read_access_logs
+    - create_security_incident
+
+remediation_specialist:
+  role: Controlled remediation advisor
+  goal: Convert findings into safe recommendations with human approval boundaries.
+  permissions:
+    - read_incidents
+    - recommend_only
+

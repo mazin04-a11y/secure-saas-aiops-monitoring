@@ -1,0 +1,16 @@
+inspect_metrics:
+  owner: performance_auditor
+  output: Performance findings with evidence and recommendation.
+
+inspect_access_logs:
+  owner: security_sentinel
+  output: Security findings with evidence and recommendation.
+
+validate_recommendation:
+  owner: remediation_specialist
+  output: Human-safe remediation guidance.
+
+log_agent_activity:
+  owner: manager_agent
+  output: Agent task log entry for assessment evidence.
+
