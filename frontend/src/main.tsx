@@ -74,6 +74,16 @@ type ExternalIntelStatus = {
   latest_summary: string | null;
 };
 
+type AuditLog = {
+  id: number;
+  actor: string;
+  action: string;
+  resource_type: string;
+  resource_id: number | null;
+  details: string;
+  created_at: string;
+};
+
 type AgentAssessment = {
   mode: string;
   summary: string;
@@ -93,6 +103,7 @@ const navItems = [
   { id: "agents", label: "Agents" },
   { id: "intel", label: "External Intel" },
   { id: "evidence", label: "Evidence" },
+  { id: "audit", label: "Audit" },
 ];
 
 function App() {
@@ -100,6 +111,7 @@ function App() {
   const [accessLogs, setAccessLogs] = React.useState<AccessLog[]>([]);
   const [incidents, setIncidents] = React.useState<Incident[]>([]);
   const [agentLogs, setAgentLogs] = React.useState<AgentTaskLog[]>([]);
+  const [auditLogs, setAuditLogs] = React.useState<AuditLog[]>([]);
   const [intelReports, setIntelReports] = React.useState<ExternalIntelReport[]>([]);
   const [intelStatus, setIntelStatus] = React.useState<ExternalIntelStatus | null>(null);
   const [intelFeedback, setIntelFeedback] = React.useState("");
@@ -118,6 +130,7 @@ function App() {
       accessLogsResponse,
       incidentsResponse,
       agentLogsResponse,
+      auditLogsResponse,
       intelReportsResponse,
       intelStatusResponse,
     ] = await Promise.all([
@@ -125,6 +138,7 @@ function App() {
       fetch(`${apiBase}/access-logs`),
       fetch(`${apiBase}/incidents`),
       fetch(`${apiBase}/agent-logs`),
+      fetch(`${apiBase}/audit-logs`),
       fetch(`${apiBase}/external-intel`),
       fetch(`${apiBase}/external-intel/status`),
     ]);
@@ -132,6 +146,7 @@ function App() {
     setAccessLogs(await accessLogsResponse.json());
     setIncidents(await incidentsResponse.json());
     setAgentLogs(await agentLogsResponse.json());
+    setAuditLogs(await auditLogsResponse.json());
     setIntelReports(await intelReportsResponse.json());
     setIntelStatus(await intelStatusResponse.json());
   }, []);
@@ -490,6 +505,41 @@ function App() {
           </section>
         ) : null}
 
+        {activeSection === "audit" ? (
+          <section className="panel page">
+            <div className="panel-heading">
+              <h2>Audit Trail</h2>
+              <span>Recent ingestion and assessment activity</span>
+            </div>
+            <div className="table metadata-table">
+              <div className="table-row audit-row table-head">
+                <span>Action</span>
+                <span>Resource</span>
+                <span>Actor</span>
+                <span>Observed</span>
+              </div>
+              {auditLogs.map((log) => (
+                <div className="table-row audit-row" key={log.id}>
+                  <span>{formatAction(log.action)}</span>
+                  <span>{log.resource_type}{log.resource_id ? ` #${log.resource_id}` : ""}</span>
+                  <span>{log.actor}</span>
+                  <span>{formatDateTime(log.created_at)}</span>
+                </div>
+              ))}
+              {auditLogs.length === 0 ? <p className="empty table-empty">No audit events recorded yet.</p> : null}
+            </div>
+            <div className="incident-list">
+              {auditLogs.slice(0, 5).map((log) => (
+                <article className="compact-log" key={`detail-${log.id}`}>
+                  <strong>{formatAction(log.action)}</strong>
+                  <span>{log.details || "No extra details recorded."}</span>
+                  <small>{log.resource_type} / {log.actor} / {formatDateTime(log.created_at)}</small>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
       </section>
     </main>
   );
@@ -525,6 +575,13 @@ function formatTime(value: string) {
 
 function displayEvidence(value: string) {
   return value.replace(/\[source: [^\]]+\]\s*/g, "").replace(/\[correlation: [^\]]+\]\s*/g, "");
+}
+
+function formatAction(value: string) {
+  return value
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(<App />);

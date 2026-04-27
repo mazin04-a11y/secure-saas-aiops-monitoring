@@ -109,3 +109,16 @@ class ExternalIntelStatus(BaseModel):
     connected: bool
     status: str
     latest_summary: str | None = None
+
+
+class AuditLogRead(BaseModel):
+    id: int
+    actor: str
+    action: str
+    resource_type: str
+    resource_id: int | None
+    details: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

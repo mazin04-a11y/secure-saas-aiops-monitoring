@@ -8,16 +8,28 @@
 <img src="https://img.shields.io/badge/runtime-Docker-2496ed?style=for-the-badge&logo=docker&logoColor=white" />
 <img src="https://img.shields.io/badge/agents-raw--code%20AIOps-7c3aed?style=for-the-badge" />
 <img src="https://img.shields.io/badge/external%20intel-context%20only-f59e0b?style=for-the-badge" />
-<img src="https://img.shields.io/badge/tests-8%20backend%20passing-22c55e?style=for-the-badge" />
-<img src="https://img.shields.io/badge/status-MVP%20to%20production--grade-111827?style=for-the-badge" />
+<img src="https://img.shields.io/badge/tests-12%20backend%20passing-22c55e?style=for-the-badge" />
+<img src="https://img.shields.io/badge/status-production--style%20MVP-111827?style=for-the-badge" />
 
 <br /><br />
 
 **A secure internal SaaS monitoring platform that ingests real operational data, detects incidents through identity-aware AIOps agents, and presents business-readable remediation evidence.**
 
-*Built for a developer portfolio, but shaped like a real production system: REST ingestion, PostgreSQL memory, Dockerized services, audit evidence, prompt guardrails, contextual external intelligence, and a clean React command center.*
+*Built for a developer portfolio, but shaped like a production-style MVP: API-key-protected ingestion, PostgreSQL memory, Dockerized services, audit evidence, prompt guardrails, contextual external intelligence, and a clean React command center.*
 
 </div>
+
+---
+
+## Live Deployment
+
+| Service | URL |
+|---|---|
+| Dashboard | https://frontend-production-76ec8.up.railway.app |
+| API base | https://backend-production-a65d.up.railway.app |
+| API health | https://backend-production-a65d.up.railway.app/health |
+
+Production smoke check on April 27, 2026: the dashboard returned `200` HTML, backend health returned `status=ok`, metric ingestion succeeded, and repeated agent assessment deduplicated incidents. The first assessment created 2 incidents from the ingested performance signal; the second assessment created 0 new incidents.
 
 ---
 
@@ -46,29 +58,30 @@ From a developer point of view, the system needed to prove:
 
 | Requirement | Developer interpretation | Implemented by |
 |---|---|---|
-| Ingest real operational data | Accept service metrics and access logs through API endpoints | `POST /metrics/ingest`, `POST /access-logs/ingest` |
+| Ingest real operational data | Accept service metrics and access logs through API-key-protected endpoints | `POST /metrics/ingest`, `POST /access-logs/ingest` |
 | Store operational memory | Persist metrics, logs, incidents, and agent evidence in a relational database | PostgreSQL, SQLAlchemy models |
 | Detect incidents | Run deterministic AIOps assessment logic over internal data | `backend/app/services/raw_agents.py` |
 | Avoid duplicate incidents | Correlate repeated findings to the same open incident | Source labels and correlation IDs |
 | Preserve evidence | Store readable agent task logs for audit and demonstration | `agent_task_logs` table |
+| Track operational actions | Record important ingestion and assessment activity for review | `audit_logs` table |
 | Protect the system from unsafe prompts | Reject destructive mission prompts before agent work starts | `PromptGuard` service |
 | Keep public intelligence contextual | Allow public search context without creating incidents from it | External Intel service and `ExternalIntelAnalyst` |
 | Give business-readable output | Display status, incidents, recommendations, timestamps, and sources | React dashboard |
 | Be runnable locally | One command should start database, backend, and frontend | Docker Compose |
 | Be testable | Backend tests and frontend builds must verify core guardrails | `unittest`, `npm run build` |
 
-### Non-negotiable rules
+### Data integrity principles
 
-This project intentionally behaves like a real monitoring product, not a toy simulator.
+The platform is designed to give operators trustworthy signals from connected systems, with clear evidence and minimal alert noise.
 
-| Rule | Why it matters |
+| Principle | Client benefit |
 |---|---|
-| No demo rows are auto-seeded on startup | The dashboard should show empty states until real data arrives |
-| No simulator controls in the product UI | Operators should trust the dashboard as an ingestion-driven system |
-| No incidents from missing data | "No data" is not an incident; it is a connection state |
-| No incidents from External Intel alone | Public vendor news can add context, but cannot prove internal impact |
-| No evidence logs from External Intel alone | Evidence must come from internal metrics or internal access logs |
-| Repeated assessments must deduplicate | Running the AIOps crew twice should not spam the incident register |
+| Ingestion-driven monitoring | The dashboard reports data received from connected systems |
+| Clear empty states | If no data source is connected, the product shows that clearly instead of inventing activity |
+| Evidence-based incidents | Incidents are created only when internal metrics or access logs support them |
+| Context-aware external intelligence | Public vendor information can enrich analysis, but does not create incidents by itself |
+| Deduplicated alerting | Repeated assessments update existing incidents instead of creating noisy duplicates |
+| Audit-ready evidence | Agent findings are linked to internal telemetry and readable evidence logs |
 
 ### V-Model traceability
 
@@ -166,6 +179,9 @@ Recommended local values:
 DATABASE_URL=postgresql+psycopg://aiops:aiops@postgres:5432/aiops_saas
 CREWAI_MODE=raw
 SERPER_API_KEY=
+INGEST_API_KEYS=local-dev-ingest-key
+RATE_LIMIT_REQUESTS=120
+RATE_LIMIT_WINDOW_SECONDS=60
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
@@ -201,6 +217,7 @@ This is expected. The app does not invent operational risk.
 
 ```bash
 curl -X POST http://localhost:8000/metrics/ingest \
+  -H "X-API-Key: local-dev-ingest-key" \
   -H "Content-Type: application/json" \
   -d '{
     "service_name": "payment-api",
@@ -222,6 +239,7 @@ Expected behavior:
 
 ```bash
 curl -X POST http://localhost:8000/access-logs/ingest \
+  -H "X-API-Key: local-dev-ingest-key" \
   -H "Content-Type: application/json" \
   -d '{
     "username": "security_user",
@@ -324,6 +342,7 @@ flowchart LR
         M3[incidents]
         M4[agent_task_logs]
         M5[external_intel_reports]
+        M6[audit_logs]
     end
 
     subgraph AGENTS["Raw-Code AIOps Agents"]
@@ -489,11 +508,12 @@ sequenceDiagram
 |---|---|---|
 | `GET` | `/health` | Backend health check |
 | `GET` | `/metrics` | List latest system metrics |
-| `POST` | `/metrics/ingest` | Ingest one internal performance metric |
+| `POST` | `/metrics/ingest` | Ingest one internal performance metric with `X-API-Key` |
 | `GET` | `/access-logs` | List latest access logs |
-| `POST` | `/access-logs/ingest` | Ingest one internal access log |
+| `POST` | `/access-logs/ingest` | Ingest one internal access log with `X-API-Key` |
 | `GET` | `/incidents` | List deduplicated incidents |
 | `GET` | `/agent-logs` | List agent evidence logs |
+| `GET` | `/audit-logs` | List recent ingestion and assessment audit events |
 | `POST` | `/agents/kickoff` | Run default guarded AIOps assessment |
 | `POST` | `/agents/prompt` | Run assessment with a non-destructive mission prompt |
 | `GET` | `/external-intel` | List completed public intelligence reports |
@@ -605,6 +625,15 @@ erDiagram
         text evidence
         datetime created_at
     }
+    AUDIT_LOGS {
+        int id
+        string actor
+        string action
+        string resource_type
+        int resource_id
+        text details
+        datetime created_at
+    }
 ```
 
 | Table | Meaning |
@@ -614,6 +643,7 @@ erDiagram
 | `incidents` | Deduplicated operational/security incidents |
 | `agent_task_logs` | Agent evidence and permission-scope audit trail |
 | `external_intel_reports` | Optional public intelligence context |
+| `audit_logs` | Ingestion and assessment activity history |
 | `user_profiles` | Future-ready user/RBAC foundation for access logs |
 
 ---
@@ -700,6 +730,7 @@ This runs:
 
 ```bash
 curl -X POST http://localhost:8000/metrics/ingest \
+  -H "X-API-Key: local-dev-ingest-key" \
   -H "Content-Type: application/json" \
   -d '{"service_name":"codex-mini-api","cpu_usage":92,"memory_usage":41,"response_time_ms":120,"error_rate":0.1,"status":"degraded"}'
 
@@ -737,9 +768,17 @@ docker compose logs -f frontend
 docker compose up -d --force-recreate backend
 ```
 
-### Railway target
+### Railway deployment
 
-`railway.json` is included as the future cloud deployment target. The current local stack is Docker Compose first, with PostgreSQL, backend, and frontend services separated cleanly for deployment.
+The MVP is live on Railway with separate `frontend`, `backend`, and `Postgres` services.
+
+| Service | Live URL |
+|---|---|
+| Frontend | https://frontend-production-76ec8.up.railway.app |
+| Backend | https://backend-production-a65d.up.railway.app |
+| Backend health | https://backend-production-a65d.up.railway.app/health |
+
+The backend uses Railway's runtime `$PORT`, and the frontend is configured with `VITE_API_BASE_URL=https://backend-production-a65d.up.railway.app`.
 
 ### Jenkins scaffold
 
@@ -784,6 +823,6 @@ This repository is designed to demonstrate:
 
 **Secure SaaS AIOps Monitoring turns raw internal telemetry into correlated incidents, visible evidence, and operator-ready recommendations.**
 
-*No fake startup data. No public-intel-only incidents. No duplicate alert spam. Just a clean monitoring workflow built like a production system.*
+*Ingestion-driven data, contextual public intelligence, deduplicated incidents, and audit-ready evidence in a focused production-style MVP.*
 
 </div>

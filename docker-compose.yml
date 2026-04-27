@@ -23,6 +23,9 @@ services:
       APP_ENVIRONMENT: local
       CREWAI_MODE: raw
       SERPER_API_KEY: ${SERPER_API_KEY:-}
+      INGEST_API_KEYS: ${INGEST_API_KEYS:-local-dev-ingest-key}
+      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-120}
+      RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
     ports:
       - "8000:8000"
     depends_on:
