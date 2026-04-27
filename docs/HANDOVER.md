@@ -21,14 +21,26 @@ C:\Users\mazin\Documents\Codex\2026-04-26\what-shall-i-do\secure-saas-aiops-moni
 - Database: PostgreSQL via Docker Compose
 - Agent mode: raw-code deterministic agents
 - External intelligence: optional Serper integration
-- Deployment target: Railway later
+- Deployment target: Railway deployed
 - CI/CD: Jenkinsfile scaffold exists
+- Public GitHub repo: https://github.com/mazin04-a11y/secure-saas-aiops-monitoring
+- GitHub release: `v1.0.0-mvp`
 
-## Current Running URLs
+## Current URLs
+
+Local Docker services were stopped after deployment to save machine resources.
+
+Local URLs when Docker is running:
 
 - Dashboard: http://localhost:5173
 - API docs: http://localhost:8000/docs
 - Health: http://localhost:8000/health
+
+Railway production URLs:
+
+- Frontend: https://frontend-production-76ec8.up.railway.app
+- Backend: https://backend-production-a65d.up.railway.app
+- Backend health: https://backend-production-a65d.up.railway.app/health
 
 ## Current Product Direction
 
@@ -69,10 +81,21 @@ The app should not:
 - Added External Intel status API.
 - Wired `SERPER_API_KEY` into `docker-compose.yml`.
 - Verified Serper works after user updated `.env`.
+- Added incident source labels and correlation IDs.
+- Added incident deduplication so repeated assessments update matching open incidents instead of creating duplicates.
+- Added legacy incident upgrade logic for older open incidents without correlation metadata.
+- Added UI timestamps, source labels, and correlation IDs for incidents/evidence/metrics/logs.
+- Rewrote `README.md` into a comprehensive GitHub-facing project document.
+- Removed public-facing provider-specific model-service naming from publishable files.
+- Published public GitHub repository and release `v1.0.0-mvp`.
+- Deployed Railway project with `backend`, `frontend`, and `Postgres` services.
+- Backend Railway deployment uses dynamic `$PORT`.
+- Frontend Railway deployment uses Vite preview with Railway host support.
+- Backend CORS allows Railway frontend domains.
 
 ## Current Database State
 
-After live verification on April 26, 2026:
+Local database after live verification on April 26, 2026:
 
 - `system_metrics`: 1 real API-ingested `payment-api` degraded metric.
 - `access_logs`: 3 real API-ingested failed login records for `security_user`.
@@ -81,6 +104,13 @@ After live verification on April 26, 2026:
 - External Intel has one successful Stripe public status report.
 - External Intel appears as assessment context/recommendation only and did not create an incident or evidence log.
 - Rejected External Intel queries show a UI/API rejection and do not change completed report count.
+- Later light tests added additional `codex-light-api` and `codex-mini-api` metric/incident records to verify deduplication behavior.
+
+Railway production database:
+
+- Managed Railway Postgres service is deployed.
+- It starts empty unless data is ingested through the deployed API.
+- External Intel is still context-only.
 
 Verified clean baseline before ingestion:
 
@@ -110,6 +140,16 @@ Do not paste API keys into chat. If `.env` changes, recreate/restart the backend
 cd ~/projects/secure-saas-aiops-monitoring
 docker compose up -d --force-recreate backend
 ```
+
+Railway backend variables:
+
+- `DATABASE_URL` references Railway Postgres.
+- `APP_ENVIRONMENT=production`
+- `CREWAI_MODE=raw`
+
+Railway frontend variables:
+
+- `VITE_API_BASE_URL=https://backend-production-a65d.up.railway.app`
 
 ## Real API Test Payloads
 
@@ -157,11 +197,12 @@ curl -X POST http://localhost:8000/external-intel/search \
 
 ## Next Recommended Work
 
-1. Hard refresh dashboard and confirm the post-verification state:
-   - Performance shows the real `payment-api` metric.
-   - Security shows the three real failed login records.
-   - Incidents shows 2 performance incidents and 1 security incident.
-   - Evidence shows 5 internal evidence logs and no External Intel evidence log.
-2. Improve UI empty states and add timestamps/source labels.
-3. Add a convenient DB reset/dev cleanup command for future demos, guarded by explicit confirmation.
-4. Prepare GitHub commit after UI behavior is checked.
+1. Open the Railway frontend and confirm the UI loads:
+   - https://frontend-production-76ec8.up.railway.app
+2. Light-test the deployed API:
+   - Ingest one metric into the Railway backend.
+   - Run the assessment twice.
+   - Confirm the second run creates `0` duplicate incidents.
+3. Update `README.md` with Railway live links after confirming the public UI.
+4. Add screenshots later when local disk space allows restarting the app briefly.
+5. Consider adding a guarded DB reset/dev cleanup command for future demos.
