@@ -25,6 +25,7 @@ C:\Users\mazin\Documents\Codex\2026-04-26\what-shall-i-do\secure-saas-aiops-moni
 - CI/CD: Jenkinsfile scaffold exists
 - Public GitHub repo: https://github.com/mazin04-a11y/secure-saas-aiops-monitoring
 - GitHub release: `v1.0.0-mvp`
+- Latest pushed commit: `bc79ea7 Add ingestion security and audit trail`
 
 ## Current URLs
 
@@ -51,10 +52,12 @@ The app should:
 - Wait for real internal operational/security data.
 - Ingest metrics through `POST /metrics/ingest`.
 - Ingest access logs through `POST /access-logs/ingest`.
+- Require `X-API-Key` for metric/access-log ingestion when `INGEST_API_KEYS` is configured.
 - Store operational state in PostgreSQL.
 - Run raw-code AIOps assessment only when internal data exists.
 - Use External Intel as context only, not as an incident by itself.
 - Show empty states when data is not connected.
+- Record audit events for ingestion and agent assessment actions.
 
 The app should not:
 
@@ -92,6 +95,18 @@ The app should not:
 - Backend Railway deployment uses dynamic `$PORT`.
 - Frontend Railway deployment uses Vite preview with Railway host support.
 - Backend CORS allows Railway frontend domains.
+- Added `INGEST_API_KEYS` support for protected ingestion endpoints.
+- Added lightweight in-memory rate limiting with `RATE_LIMIT_REQUESTS` and `RATE_LIMIT_WINDOW_SECONDS`.
+- Added `audit_logs` table, `GET /audit-logs`, and audit events for metric ingestion, access-log ingestion, and agent assessments.
+- Added frontend `Audit` tab.
+- Updated README with Railway live links, buyer-facing data integrity wording, and production-style MVP positioning.
+- Added backend API security/audit tests in `backend/tests/test_api_security_audit.py`.
+- Backend test suite now has 12 passing tests.
+- Pushed commit `bc79ea7 Add ingestion security and audit trail` to GitHub `main`.
+- Redeployed Railway backend and frontend from a clean Windows checkout using service-folder roots.
+- Latest Railway deployments:
+  - Backend: `a1b3f749-e42e-4cd3-b26a-4d6fdac78b50`
+  - Frontend: `cfe1d145-6d53-4df6-a7bf-c1213fd44c44`
 
 ## Current Database State
 
@@ -111,6 +126,8 @@ Railway production database:
 - Managed Railway Postgres service is deployed.
 - It starts empty unless data is ingested through the deployed API.
 - External Intel is still context-only.
+- Latest live security smoke test created a `secure-live-api` metric through the protected ingestion path.
+- `GET /audit-logs` is live and returned a `metric_ingested` event with actor `api_key`.
 
 Verified clean baseline before ingestion:
 
@@ -123,6 +140,19 @@ Verified clean baseline before ingestion:
 - `POST /agents/prompt` with a rejected destructive prompt returned `guardrail_status=rejected`, `incidents_created=0`, and did not change incidents/evidence counts.
 - Invalid metric payloads return HTTP 422.
 
+Verified after security/audit deployment on April 27, 2026:
+
+- Backend health returned `{"status":"ok","service":"secure-saas-aiops-monitoring"}`.
+- OpenAPI includes `/audit-logs`.
+- OpenAPI includes `x-api-key` header support for ingestion.
+- Unauthenticated `POST /metrics/ingest` returned HTTP 401.
+- Authenticated `POST /metrics/ingest` returned HTTP 200.
+- `GET /audit-logs` returned at least one `metric_ingested` audit event.
+- Frontend returned HTTP 200.
+- Frontend bundle contains the new `Audit Trail` tab and `/audit-logs` API call.
+- Live screenshot saved locally at:
+  `C:\Users\mazin\Documents\Codex\2026-04-27\files-mentioned-by-the-user-handover\railway-audit-tab-live.png`
+
 ## Environment Notes
 
 `.env` should include:
@@ -131,6 +161,9 @@ Verified clean baseline before ingestion:
 DATABASE_URL=postgresql+psycopg://aiops:aiops@postgres:5432/aiops_saas
 CREWAI_MODE=raw
 SERPER_API_KEY=your_local_key
+INGEST_API_KEYS=local-dev-ingest-key
+RATE_LIMIT_REQUESTS=120
+RATE_LIMIT_WINDOW_SECONDS=60
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
@@ -146,6 +179,10 @@ Railway backend variables:
 - `DATABASE_URL` references Railway Postgres.
 - `APP_ENVIRONMENT=production`
 - `CREWAI_MODE=raw`
+- `INGEST_API_KEYS` is set in Railway and should not be printed or committed.
+- `RATE_LIMIT_REQUESTS=120`
+- `RATE_LIMIT_WINDOW_SECONDS=60`
+- `SERPER_API_KEY` is optional; add it if External Intel search should be enabled.
 
 Railway frontend variables:
 
@@ -157,6 +194,7 @@ Send a performance metric:
 
 ```bash
 curl -X POST http://localhost:8000/metrics/ingest \
+  -H "X-API-Key: local-dev-ingest-key" \
   -H "Content-Type: application/json" \
   -d '{"service_name":"payment-api","cpu_usage":91,"memory_usage":88,"response_time_ms":1100,"error_rate":8.1,"status":"degraded"}'
 ```
@@ -165,6 +203,7 @@ Send an access log:
 
 ```bash
 curl -X POST http://localhost:8000/access-logs/ingest \
+  -H "X-API-Key: local-dev-ingest-key" \
   -H "Content-Type: application/json" \
   -d '{"username":"security_user","action":"login","ip_address":"203.0.113.77","outcome":"failed"}'
 ```
@@ -194,15 +233,106 @@ curl -X POST http://localhost:8000/external-intel/search \
 - Agents: guarded mission prompt
 - External Intel: public Serper search and completed reports
 - Evidence: agent task logs
+- Audit: ingestion and assessment audit trail
+
+## New Repo Direction
+
+The next major product should be a new public repo:
+
+```text
+governed-saas-aiops-copilot
+```
+
+Product goal:
+
+- Build a real SaaS monitoring copilot, not just a class project.
+- Use real ingestion, stateful memory, governed LLM reporting, human approval gates, and auditability.
+
+Recommended stack:
+
+- FastAPI: API bridge / nervous system
+- PostgreSQL: stateful relational memory and audit storage
+- React/Vite: operator dashboard / senses
+- LangGraph: durable workflow control layer, explicit state machine, approval gates
+- CrewAI: multi-agent specialist reasoning team inside selected workflow nodes
+- OpenAI: LLM reasoning and structured report generation
+- Pydantic: schema validation and reliability
+- Serper: optional external intelligence context
+
+Core principle:
+
+```text
+Raw code detects.
+LangGraph controls.
+CrewAI analyzes.
+OpenAI explains.
+Pydantic validates.
+Human approves.
+PostgreSQL audits.
+```
+
+Suggested product description:
+
+```text
+A governed SaaS monitoring copilot using LangGraph workflows, CrewAI specialist agents, OpenAI structured outputs, human approval, and audit logging.
+```
+
+Important implementation direction:
+
+- Use both LangGraph and CrewAI, but for different roles.
+- LangGraph should control the workflow state machine and human approval gates.
+- CrewAI should provide the multi-agent product story: manager agent, specialist agents, role/goal/backstory.
+- Do not let LLMs directly create incidents.
+- Deterministic code should detect incidents from internal metrics/access logs.
+- LLMs should generate evidence-grounded operational reports.
+- Pydantic should validate all structured LLM output before saving.
+- High-risk remediation should remain pending until human approval.
+- PostgreSQL should store evidence bundles, reports, approvals, validation status, and audit logs.
+
+Candidate new repo pages:
+
+- Overview
+- Metrics
+- Security
+- Incidents
+- AI Reports
+- Approvals
+- Audit
+
+Candidate workflow nodes:
+
+- `BuildEvidenceBundle`
+- `RunCrewAIAnalysis`
+- `ValidateStructuredOutput`
+- `SafetyReview`
+- `HumanApprovalGate`
+- `SaveOperationalReport`
+
+Candidate CrewAI agents:
+
+- `ManagerAgent`
+- `PerformanceAnalystAgent`
+- `SecurityAnalystAgent`
+- `ExternalIntelAgent`
+- `RemediationReviewerAgent`
+
+Important claims to avoid:
+
+- Do not claim autonomous remediation unless implemented.
+- Do not claim Datadog/New Relic replacement.
+- Do not claim real-time monitoring unless continuous ingestion is implemented.
+- Do not claim LLM-based detection if detection is deterministic.
+
+Honest positioning:
+
+```text
+A governed SaaS AIOps copilot MVP with real ingestion, stateful memory, multi-agent orchestration, validated LLM reports, human approval gates, and auditability.
+```
 
 ## Next Recommended Work
 
-1. Open the Railway frontend and confirm the UI loads:
-   - https://frontend-production-76ec8.up.railway.app
-2. Light-test the deployed API:
-   - Ingest one metric into the Railway backend.
-   - Run the assessment twice.
-   - Confirm the second run creates `0` duplicate incidents.
-3. Update `README.md` with Railway live links after confirming the public UI.
-4. Add screenshots later when local disk space allows restarting the app briefly.
-5. Consider adding a guarded DB reset/dev cleanup command for future demos.
+1. Start a new chat and create the new public repo `governed-saas-aiops-copilot`.
+2. Scaffold the new product with FastAPI, React/Vite, PostgreSQL, LangGraph, CrewAI, OpenAI, Pydantic, and Serper.
+3. Implement ingestion, deterministic incident detection, evidence bundles, validated LLM operational reports, approval gates, and audit logging.
+4. Keep the current repo `secure-saas-aiops-monitoring` as the deployed raw-code MVP baseline.
+5. Optionally add `SERPER_API_KEY` to the current Railway backend if External Intel should be active live.
